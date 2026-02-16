@@ -1,1 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Terminal</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f6f8;
+            margin: 0;
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h2 { margin-top: 0; color: #333; }
+        p { color: #666; margin-bottom: 20px; }
+        
+        #pay-button {
+            background-color: #00b259; /* Lightspeed Green */
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #pay-button:hover { background-color: #00994d; }
+        #pay-button:disabled { background-color: #ccc; cursor: not-allowed; }
+    </style>
+</head>
+<body>
 
+<div class="container">
+    <h2>Confirm Payment</h2>
+    <p>Amount Due: <span id="amount-display">Loading...</span></p>
+    <button id="pay-button">Process Payment</button>
+</div>
+
+<script>
+    // 1. Helper to parse query parameters sent by Lightspeed
+    function getQueryParams() {
+        const params = new URLSearchParams(window.location.search);
+        return {
+            amount: params.get('amount'),
+            origin: params.get('origin'),
+            register_id: params.get('register_id')
+        };
+    }
+
+    const params = getQueryParams();
+    const amountDisplay = document.getElementById('amount-display');
+    const payButton = document.getElementById('pay-button');
+
+    // Display the amount sent by Lightspeed
+    if (params.amount) {
+        amountDisplay.textContent = `$${parseFloat(params.amount).toFixed(2)}`;
+    }
+
+    // 2. The Confirmation Command Logic
+    payButton.addEventListener('click', function() {
+        // specific Lightspeed X-Series payload structure
+        const paymentCommand = {
+            step: "ACCEPT", // "ACCEPT" confirms the payment, "DECLINE" cancels it
+            type: "transaction",
+            // Optional: You can pass an external ID from your own payment processor
+            external_transaction_id: "TXN-" + Date.now() 
+        };
+
+        // Safety Check: Ensure we have a valid origin to talk to
+        // (Lightspeed passes the origin in the URL, e.g., https://my-store.retail.lightspeed.app)
+        const targetOrigin = params.origin || "*";
+
+        try {
+            // Disable button to prevent double-charging
+            payButton.disabled = true;
+            payButton.textContent = "Processing...";
+
+            // Simulate network processing time (remove this setTimeout in real usage)
+            setTimeout(() => {
+                console.log("Sending confirmation to:", targetOrigin);
+                
+                // SEND THE COMMAND
+                window.parent.postMessage(JSON.stringify(paymentCommand), targetOrigin);
+                
+                payButton.textContent = "Payment Confirmed";
+            }, 1000);
+
+        } catch (error) {
+            console.error("Payment Error:", error);
+            payButton.disabled = false;
+            payButton.textContent = "Retry";
+        }
+    });
+</script>
+
+</body>
+</html>
